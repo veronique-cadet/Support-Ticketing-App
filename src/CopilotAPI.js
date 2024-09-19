@@ -1,40 +1,49 @@
-// src/CopilotAPI.js
+
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 
 function CopilotAPI() {
-  const [data, setData] = useState(null);
+  const [clientsData, setClientsData] = useState({ data: [] });
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    
-    const apiKey = process.env.REACT_APP_COPILOT_API_KEY; 
-
-    axios
-      .get('https://api.copilot.com/v1/endpoint', {
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
+    fetch('http://localhost:5000/api/clients')  
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
       })
-      .then((response) => {
-        setData(response.data);  
-        setLoading(false);         
+      .then(responseData => {
+        console.log('Received data:', responseData);
+        setClientsData(responseData);
+        setLoading(false);
       })
       .catch((err) => {
-        setError(err.message);    
-        setLoading(false);        
+        console.error('Error:', err);
+        setError(err.message);
+        setLoading(false);
       });
   }, []);
 
-  if (loading) return <div>Loading...</div>;
-  if (error) return <div>Error: {error}</div>;
-
   return (
     <div>
-      <h1>Data from Copilot API</h1>
-      <pre>{JSON.stringify(data, null, 2)}</pre>
+      <h1>List of Clients</h1>
+      {loading ? (
+        <p>Loading...</p>
+      ) : error ? (
+        <p>Error: {error}</p>
+      ) : clientsData.data && clientsData.data.length > 0 ? (
+        <ul>
+          {clientsData.data.map((client) => (
+            <li key={client.id}>
+              {client.givenName} {client.familyName} - {client.email}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p>No clients data available</p>
+      )}
     </div>
   );
 }
