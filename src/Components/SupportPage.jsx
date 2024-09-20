@@ -2,15 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import TicketForm from './TicketForm';
 
-function SupportPage({ work }) {
+function SupportPage({ work, clientId }) {
   const navigate = useNavigate();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [workspaces, setWorkspaces] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [clientInfo, setClientInfo] = useState(null);
+
 
   const openForm = () => setIsFormOpen(true);
   const closeForm = () => setIsFormOpen(false);
+
+ 
 
   const fetchWorkspaces = async () => {
     const apiKey = '6321c838a26c4a11a519bb153cad0bba.5d9fe4e19342f1ff';
@@ -103,6 +107,7 @@ function SupportPage({ work }) {
         />
       )}
       <h1 className="text-4xl font-bold mb-4">{workspaces?.brandName} Support</h1>
+
       <div className="space-x-4 mb-12"> {/* Added margin-bottom here */}
         <button
           onClick={openForm}

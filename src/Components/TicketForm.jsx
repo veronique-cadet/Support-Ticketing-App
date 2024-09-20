@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 
-function TicketForm({ onClose, accentColor, font }) {
+function TicketForm({ onClose, accentColor, font, onClientIdAvailable }) {
   const [clientInfo, setClientInfo] = useState(null);
   const [ticketDetails, setTicketDetails] = useState({ 
     description: '', 
     category: '',
-    invoiceId: '' // New field for selected invoice
+    invoiceId: '', // New field for selected invoice
+    confirmedSteps: false // New field for confirming troubleshooting steps
   });
   const [invoices, setInvoices] = useState([]);
   const [error, setError] = useState(null);
@@ -79,7 +80,8 @@ function TicketForm({ onClose, accentColor, font }) {
         category: ticketDetails.category,
         client_id: clientId,
         status: "New Ticket",
-        invoice_id: ticketDetails.invoiceId // Include invoice ID if applicable
+        invoice_id: ticketDetails.invoiceId, // Include invoice ID if applicable
+        confirmed_steps: ticketDetails.confirmedSteps // Include confirmed steps if applicable
       }),
     })
       .then(response => response.json())
@@ -164,6 +166,38 @@ function TicketForm({ onClose, accentColor, font }) {
                       </option>
                     ))}
                 </select>
+              </div>
+            )}
+            {ticketDetails.category === 'faq' && (
+              <div className="mb-4">
+                <p className="text-gray-700 mb-2">Have you looked at our FAQ or asked our AI?</p>
+                <button
+                  onClick={onClose}
+                  className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 transition duration-300"
+                >
+                  Go Back to Main Page
+                </button>
+              </div>
+            )}
+            {ticketDetails.category === 'technical' && (
+              <div className="mb-4">
+                <p className="text-gray-700 mb-2">Can you please try the following in the specific order:</p>
+                <ul className="list-disc list-inside text-gray-700 mb-2">
+                  <li>Refresh your window</li>
+                  <li>Clear cache and cookies</li>
+                  <li>Turn off any extensions you have</li>
+                  <li>Try using your portal in an incognito window</li>
+                </ul>
+                <div className="flex items-center mb-4">
+                  <input
+                    type="checkbox"
+                    checked={ticketDetails.confirmedSteps}
+                    onChange={(e) => setTicketDetails({ ...ticketDetails, confirmedSteps: e.target.checked })}
+                    className="mr-2"
+                    required
+                  />
+                  <label className="text-gray-700">I have tried the above steps</label>
+                </div>
               </div>
             )}
             <div className="mb-4">

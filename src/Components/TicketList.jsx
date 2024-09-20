@@ -1,21 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-function TicketList({ workspaces }) {
+function TicketList({ isInternalUser }) {
+  const navigate = useNavigate();
   const [tickets, setTickets] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showResolved, setShowResolved] = useState(false);
-  const navigate = useNavigate();
-
-  const accentColor = workspaces?.colorAccent || '#72788D';
-  const sidebarColor = workspaces?.colorSidebarBackground || '#ffa500';
 
   useEffect(() => {
     fetchTickets();
   }, []);
 
   const fetchTickets = async () => {
+    setIsLoading(true);
     try {
       const response = await fetch('http://localhost:3001/tickets', {
         headers: {
@@ -27,91 +25,118 @@ function TicketList({ workspaces }) {
       }
       const data = await response.json();
       setTickets(data);
-      setIsLoading(false);
-      console.log(data);
-    } catch (err) {
-      setError(err.message);
+    } catch (error) {
+      setError(error.message);
+    } finally {
       setIsLoading(false);
     }
   };
 
-  const handleGoBack = () => {
-    navigate(-1);
-  };
-   
-  const handleResolve = async (id) => {
+  const handleDelete = async (ticketId) => {
+    console.log(`Attempting to delete ticket ${ticketId}`);
     try {
-      const resolvedAt = new Date().toISOString(); // Get current date and time in ISO format
-      const response = await fetch(`http://localhost:3001/tickets/${id}`, {
+      const response = await fetch(`http://localhost:3001/tickets/${ticketId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+        },
+      });
+      console.log('Delete response:', response.status);
+      if (!response.ok) {
+        throw new Error('Failed to delete ticket');
+      }
+
+      // Update the local state to remove the deleted ticket
+      setTickets(tickets.filter(ticket => ticket.id !== ticketId));
+      console.log(`Ticket ${ticketId} deleted from local state`);
+    } catch (error) {
+      console.error('Error in handleDelete:', error);
+      setError(error.message);
+    }
+  };
+
+  const handleAskForUpdate = async (ticketId) => {
+    console.log(`Requesting update for ticket ${ticketId}`);
+    try {
+      const response = await fetch(`http://localhost:3001/tickets/${ticketId}`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ 
-          status: 'resolved',
-          resolved_at: resolvedAt
-        }),
+        body: JSON.stringify({ update_requested: true }),
       });
-      
+      console.log('Ask for update response:', response.status);
       if (!response.ok) {
-        throw new Error('Failed to update ticket');
+        throw new Error('Failed to request update');
       }
-      
-      const updatedTicket = await response.json();
-      console.log('Server response:', updatedTicket);
 
-      if (updatedTicket.status === 'resolved') {
-        setTickets(prevTickets => 
-          prevTickets.map(ticket => 
-            ticket.id === id ? updatedTicket : ticket
-          )
-        );
-        console.log('Ticket resolved successfully');
-      } else {
-        console.error('Server did not update the ticket status');
-      }
-    } catch (err) {
-      console.error('Error resolving ticket:', err);
+      // Update the local state to mark the ticket as update requested
+      setTickets(tickets.map(ticket => 
+        ticket.id === ticketId ? { ...ticket, update_requested: true } : ticket
+      ));
+      console.log(`Ticket ${ticketId} marked as update requested in local state`);
+    } catch (error) {
+      console.error('Error in handleAskForUpdate:', error);
+      setError(error.message);
     }
   };
 
+  const handleStatusChange = async (ticketId, newStatus) => {
+    console.log(`Attempting to change status of ticket ${ticketId} to ${newStatus}`);
+    try {
+      const response = await fetch(`http://localhost:3001/tickets/${ticketId}`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      console.log('Status change response:', response.status);
+      if (!response.ok) {
+        throw new Error('Failed to update ticket status');
+      }
+
+      // Update the local state
+      setTickets(tickets.map(ticket => 
+        ticket.id === ticketId ? { ...ticket, status: newStatus } : ticket
+      ));
+      console.log(`Ticket ${ticketId} status updated to ${newStatus} in local state`);
+    } catch (error) {
+      console.error('Error in handleStatusChange:', error);
+      setError(error.message);
+    }
+  };
+
+  const filteredTickets = showResolved 
+    ? tickets.filter(ticket => ticket.status === 'resolved')
+    : tickets.filter(ticket => ticket.status !== 'resolved');
+
   return (
     <div className="min-h-screen flex flex-col items-center bg-gray-100 p-8">
-      <h1 className="text-4xl font-bold mb-8">Your Tickets</h1>
+      <button
+        onClick={() => navigate('/')}
+        className="absolute top-4 right-4 bg-blue-500 text-white px-3 py-1 rounded-md text-sm font-medium hover:bg-blue-600 transition duration-300"
+      >
+        Back
+      </button>
+
+      <h1 className="text-4xl font-bold mb-8">{isInternalUser ? 'Internal Support' : 'Your Tickets'}</h1>
       
       <div className="w-full max-w-4xl">
-        <div className="flex justify-between items-center mb-8">
-          <div className="space-x-4">
-            <button
-              onClick={() => setShowResolved(false)}
-              style={{
-                backgroundColor: !showResolved ? accentColor : 'transparent',
-                color: !showResolved ? 'white' : accentColor,
-                border: `2px solid ${accentColor}`
-              }}
-              className="py-2 px-4 rounded font-bold transition duration-300"
-            >
-              Open Tickets
-            </button>
-            <button
-              onClick={() => setShowResolved(true)}
-              style={{
-                backgroundColor: showResolved ? accentColor : 'transparent',
-                color: showResolved ? 'white' : accentColor,
-                border: `2px solid ${accentColor}`
-              }}
-              className="py-2 px-4 rounded font-bold transition duration-300"
-            >
-              Resolved Tickets
-            </button>
-          </div>
+        <div className="flex justify-center space-x-4 mb-8">
           <button
-            onClick={handleGoBack}
-            style={{ backgroundColor: sidebarColor }}
-            className="text-white font-bold py-2 px-4 rounded transition duration-300 hover:opacity-90"
+            onClick={() => setShowResolved(false)}
+            className={`px-4 py-2 rounded-md ${!showResolved ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700'}`}
           >
-            Go Back
+            Open Tickets
+          </button>
+          <button
+            onClick={() => setShowResolved(true)}
+            className={`px-4 py-2 rounded-md ${showResolved ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700'}`}
+          >
+            Resolved Tickets
           </button>
         </div>
 
@@ -119,28 +144,66 @@ function TicketList({ workspaces }) {
           <div className="text-center">Loading tickets...</div>
         ) : error ? (
           <div className="text-red-500 text-center">Error: {error}</div>
-        ) : (showResolved ? tickets.filter(ticket => ticket.status === 'resolved') : tickets.filter(ticket => ticket.status !== 'resolved')).length === 0 ? (
-          <p className="text-center text-lg font-medium">
-            {showResolved ? "No resolved tickets found." : "No open tickets found."}
-          </p>
+        ) : filteredTickets.length === 0 ? (
+          <p className="text-center">No {showResolved ? 'resolved' : 'open'} tickets found.</p>
         ) : (
           <div className="space-y-6">
-            {(showResolved ? tickets.filter(ticket => ticket.status === 'resolved') : tickets.filter(ticket => ticket.status !== 'resolved')).map((ticket) => (
+            {filteredTickets.map((ticket) => (
               <div key={ticket.id} className="bg-white rounded-lg shadow-md p-6">
                 <h2 className="text-xl font-semibold mb-2">{ticket.title}</h2>
                 <p className="text-gray-600 mb-1">Category: {ticket.category}</p>
-                <p className="text-gray-600 mb-1">Status: {ticket.status}</p>
                 <p className="text-gray-600 mb-2">Created: {new Date(ticket.created_at).toLocaleString()}</p>
+                <p className="text-gray-600 mb-2">Status: {ticket.status}</p>
                 <p className="mb-4">{ticket.description}</p>
-                {!showResolved && (
-                  <button
-                    onClick={() => handleResolve(ticket.id)}
-                    style={{ backgroundColor: accentColor }}
-                    className="text-white font-bold py-2 px-4 rounded transition duration-300 hover:opacity-90"
-                  >
-                    Resolve
-                  </button>
-                )}
+                <div className="flex justify-between items-center">
+                  {isInternalUser ? (
+                    <>
+                      {ticket.update_requested && (
+                        <span className="text-yellow-500 font-semibold">Update Requested</span>
+                      )}
+                      <select
+                        value={ticket.status}
+                        onChange={(e) => handleStatusChange(ticket.id, e.target.value)}
+                        className="border rounded px-2 py-1"
+                      >
+                        <option value="new">New</option>
+                        <option value="pending">Pending</option>
+                        <option value="resolved">Resolved</option>
+                      </select>
+                      {ticket.status !== 'resolved' && (
+                        <button
+                          onClick={() => handleDelete(ticket.id)}
+                          className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 transition duration-300"
+                        >
+                          Delete
+                        </button>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      {ticket.status !== 'resolved' && (
+                        <>
+                          {ticket.update_requested ? (
+                            <span className="text-yellow-500 font-semibold">Update Requested</span>
+                          ) : (
+                            <button
+                              onClick={() => handleAskForUpdate(ticket.id)}
+                              className="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600 transition duration-300"
+                            >
+                              Ask for Update
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleDelete(ticket.id)}
+                            className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 transition duration-300"
+                          >
+                            Delete
+                          </button>
+                        </>
+                      )}
+                    </>
+                  )}
+                </div>
               </div>
             ))}
           </div>

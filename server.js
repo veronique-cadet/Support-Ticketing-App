@@ -7,6 +7,7 @@ const PORT = 5000;
 const apiKey = '6321c838a26c4a11a519bb153cad0bba.5d9fe4e19342f1ff';
 
 app.use(cors());
+app.use(express.json());
 
 // Get a specific client by ID
 app.get('/api/clients/:id', async (req, res) => {
@@ -89,43 +90,37 @@ app.get('/api/invoices', async (req, res) => {
   }
 });
 
-// Send email to Copilot
-app.post('/send-to-copilot', async (req, res) => {
-  const { ticketId, title, category, status, createdAt, description } = req.body;
+// Send message to Copilot
+app.post('/api/messages', async (req, res) => {
+    console.log("9999999999999")
+  console.log("Sending message to Copilot");
+  const { text, channelId } = req.body;
 
-  // Create a transporter using SMTP
-  let transporter = nodemailer.createTransport({
-    host: "your-smtp-host",
-    port: 587,
-    secure: false, // Use TLS
-    auth: {
-      user: "your-email@example.com",
-      pass: "your-email-password",
+  const options = {
+    method: 'POST',
+    headers: {
+      accept: 'application/json',
+      'content-type': 'application/json',
+      'X-API-KEY': apiKey
     },
-  });
+    body: JSON.stringify({ text, channelId })
+  };
 
-  // Compose the email
-  let info = await transporter.sendMail({
-    from: '"Support Team" <support@yourcompany.com>',
-    to: "cadetvero@gmail.com",
-    subject: `Support Ticket #${ticketId}: ${title}`,
-    text: `
-Ticket Details:
-ID: ${ticketId}
-Title: ${title}
-Category: ${category}
-Status: ${status}
-Created: ${new Date(createdAt).toLocaleString()}
-
-Description:
-${description}
-
-Please review and assist with this ticket.
-    `,
-  });
-
-  console.log("Message sent: %s", info.messageId);
-  res.status(200).json({ message: "Email sent successfully" });
+  try {
+    const response = await fetch('https://api.copilot.com/v1/messages', options);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const data = await response.json();
+    console.log("Message sent successfully:", data);
+    res.json(data);
+  } catch (error) {
+    console.error('Error sending message:', error);
+    res.status(500).json({
+      message: 'Error sending message',
+      error: error.message,
+    });
+  }
 });
 
 app.listen(PORT, () => {

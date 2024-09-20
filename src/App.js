@@ -8,6 +8,7 @@ import InternalSupportPage from './Components/InternalSupportPage.jsx';
 
 function App() {
   const [work, setWork] = useState(null);
+  const clientId = '05c0bc2a-75b7-4540-b0a5-9094dbed0f43';  
 
   return (
     <Router>
@@ -15,7 +16,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Form />} />
           <Route path="/tickets" element={<TicketList />} />
-          <Route path="/support" element={<SupportPage work={work} />} />
+          <Route path="/support" element={<SupportPage work={work} clientId={clientId}/>} />
         <Route path="/internal-support" element={<InternalSupportPage work={work} />} />
         </Routes>
       </div>
